@@ -8,12 +8,12 @@ module Reader where
   open import Relation.Binary.PropositionalEquality           using (_≡_; refl; cong; sym) renaming (subst to ≡-subst)
   open import Data.Bool
 
-  module Calculus (𝕓 : Set) where
+  module Calculus (ℒ : Set) where
 
     data Ty : Set where
         bool : Ty
-        _⇒_  : (A B : Ty) → Ty
-        ι    : 𝕓 → Ty
+        _⇒_  : (a b : Ty) → Ty
+        𝕓    : ℒ → Ty
     
     infixr 3 _⇒_
 
@@ -51,14 +51,14 @@ module Reader where
              ----------------------------
              →       Γ ⊢ A
 
-  module Standard (𝕓 : Set) (⟦𝕓⟧ : 𝕓 → Set) where
+  module Standard (ℒ : Set) (⟦ℒ⟧ : ℒ → Set) where
     open import Data.Product
-    open Calculus 𝕓
+    open Calculus ℒ
 
     ⟦_⟧Ty : Ty → Set
     ⟦ bool ⟧Ty = Bool
     ⟦ A ⇒ B ⟧Ty = ⟦ A ⟧Ty → ⟦ B ⟧Ty
-    ⟦ ι b ⟧Ty = ⟦𝕓⟧ b
+    ⟦ 𝕓 ℓ ⟧Ty = ⟦ℒ⟧ ℓ
 
     ⟦_⟧Ctx : Ctx → Set
     ⟦ [] ⟧Ctx = ⊤
@@ -80,7 +80,7 @@ module Reader where
   Rel : Set → Set → Set₁
   Rel A B = A → B → Set
 
-  -- Product of relations
+  -- Arrow of relations
   _→Rel_ : ∀ {A B C D : Set} → Rel A B → Rel C D → Rel (A → C) (B → D)
   _→Rel_  {A} {B} R₁ R₂ f g = ∀ (a : A) (b : B) → R₁ a b → R₂ (f a) (g b) 
 
@@ -88,19 +88,20 @@ module Reader where
   _×Rel_ : ∀ {A B C D : Set} → Rel A B → Rel C D → Rel (A × C) (B × D)
   _×Rel_ R₁ R₂ (a , c) (b , d) = (R₁ a b) × (R₂ c d)
 
+  -- Terminal relation
   ⊤Rel : ∀ {A B : Set} → Rel A B
   ⊤Rel _ _ = ⊤
 
   -- relational interpretation of the calculus
-  module Relational (𝕓 : Set) (⟦𝕓⟧₁ : 𝕓 → Set) (⟦𝕓⟧₂ : 𝕓 → Set) (⟦𝕓⟧Rel : ∀ b → Rel (⟦𝕓⟧₁ b) (⟦𝕓⟧₂ b)) where
-    open Calculus 𝕓
-    open Standard 𝕓 ⟦𝕓⟧₁ renaming (⟦_⟧Ty to ⟦_⟧Ty₁; ⟦_⟧Ctx to ⟦_⟧Ctx₁; ⟦_⟧Tm to ⟦_⟧Tm₁; lookupCtx to lookup₁) public
-    open Standard 𝕓 ⟦𝕓⟧₂ renaming (⟦_⟧Ty to ⟦_⟧Ty₂; ⟦_⟧Ctx to ⟦_⟧Ctx₂; ⟦_⟧Tm to ⟦_⟧Tm₂; lookupCtx to lookup₂) public
+  module Relational (ℒ : Set) (⟦ℒ⟧₁ : ℒ → Set) (⟦ℒ⟧₂ : ℒ → Set) (⟦ℒ⟧Rel : ∀ b → Rel (⟦ℒ⟧₁ b) (⟦ℒ⟧₂ b)) where
+    open Calculus ℒ
+    open Standard ℒ ⟦ℒ⟧₁ renaming (⟦_⟧Ty to ⟦_⟧Ty₁; ⟦_⟧Ctx to ⟦_⟧Ctx₁; ⟦_⟧Tm to ⟦_⟧Tm₁; lookupCtx to lookup₁) public
+    open Standard ℒ ⟦ℒ⟧₂ renaming (⟦_⟧Ty to ⟦_⟧Ty₂; ⟦_⟧Ctx to ⟦_⟧Ctx₂; ⟦_⟧Tm to ⟦_⟧Tm₂; lookupCtx to lookup₂) public
 
     ⟦_⟧Ty : (A : Ty) → Rel (⟦ A ⟧Ty₁) (⟦ A ⟧Ty₂)
     ⟦ bool ⟧Ty = _≡_
     ⟦ A ⇒ B ⟧Ty = (⟦ A ⟧Ty) →Rel (⟦ B ⟧Ty)
-    ⟦ ι b ⟧Ty = ⟦𝕓⟧Rel b
+    ⟦ 𝕓 ℓ ⟧Ty = ⟦ℒ⟧Rel ℓ
 
     ⟦_⟧Ctx : (Γ : Ctx) → Rel (⟦ Γ ⟧Ctx₁) (⟦ Γ ⟧Ctx₂)
     ⟦ [] ⟧Ctx = ⊤Rel
@@ -134,7 +135,7 @@ module Reader where
     open Calculus LH
 
     Labeled : LH → Ty → Ty
-    Labeled ℓ A = ι ℓ ⇒ A
+    Labeled ℓ A = 𝕓 ℓ ⇒ A
 
     ⟦H⟧ : LH → Set
     ⟦H⟧ = λ { L → ⊤
@@ -145,7 +146,7 @@ module Reader where
     ⟦H⟧Rel H = λ x y → ⊥
 
     upLH : Ty
-    upLH = ι L ⇒ ι H
+    upLH = 𝕓 L ⇒ 𝕓 H
 
     ⟦upLH⟧ : ⟦H⟧ L → ⟦H⟧ H
     ⟦upLH⟧ = λ _ → tt

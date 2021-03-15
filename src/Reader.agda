@@ -93,7 +93,7 @@ module Reader where
   ⊤Rel _ _ = ⊤
 
   -- relational interpretation of the calculus
-  module Relational (ℒ : Set) (⟦ℒ⟧₁ : ℒ → Set) (⟦ℒ⟧₂ : ℒ → Set) (⟦ℒ⟧Rel : ∀ b → Rel (⟦ℒ⟧₁ b) (⟦ℒ⟧₂ b)) where
+  module Relational (ℒ : Set) (⟦ℒ⟧₁ : ℒ → Set) (⟦ℒ⟧₂ : ℒ → Set) (⟦ℒ⟧Rel : ∀ ℓ → Rel (⟦ℒ⟧₁ ℓ) (⟦ℒ⟧₂ ℓ)) where
     open Calculus ℒ
     open Standard ℒ ⟦ℒ⟧₁ renaming (⟦_⟧Ty to ⟦_⟧Ty₁; ⟦_⟧Ctx to ⟦_⟧Ctx₁; ⟦_⟧Tm to ⟦_⟧Tm₁; lookupCtx to lookup₁) public
     open Standard ℒ ⟦ℒ⟧₂ renaming (⟦_⟧Ty to ⟦_⟧Ty₂; ⟦_⟧Ctx to ⟦_⟧Ctx₂; ⟦_⟧Tm to ⟦_⟧Tm₂; lookupCtx to lookup₂) public

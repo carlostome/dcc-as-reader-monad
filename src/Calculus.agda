@@ -37,6 +37,7 @@ module Calculus where
       bool : Ty
       _⇒_  : (a b : Ty) → Ty
       _∧_  : (a b : Ty) → Ty
+      unit : Ty
       X    : I → Ty
 
     -- A context Γ is a list of types
@@ -89,6 +90,10 @@ module Calculus where
             ---------------
             → Γ ⊢ A ∧ B
 
+        unit :
+              --------
+              Γ ⊢ unit
+
         konst : (j : J)
               --------
               → Γ ⊢ K j
@@ -136,6 +141,7 @@ module Calculus where
     ⟦ bool  ⟧Ty = Bool
     ⟦ A ⇒ B ⟧Ty = ⟦ A ⟧Ty → ⟦ B ⟧Ty
     ⟦ A ∧ B ⟧Ty = ⟦ A ⟧Ty × ⟦ B ⟧Ty
+    ⟦ unit  ⟧Ty = ⊤
     ⟦ X x   ⟧Ty = ⟦ x ⟧TyVar
 
     ⟦_⟧Ctx : Ctx I → Set
@@ -160,6 +166,7 @@ module Calculus where
       ⟦ fst t        ⟧Tm = λ γ → proj₁ (⟦ t ⟧Tm γ)
       ⟦ snd t        ⟧Tm = λ γ → proj₂ (⟦ t ⟧Tm γ)
       ⟦ prd t₁ t₂    ⟧Tm = λ γ → ⟦ t₁ ⟧Tm γ , ⟦ t₂ ⟧Tm γ 
+      ⟦ unit         ⟧Tm = λ γ → tt
       ⟦ konst k      ⟧Tm = λ _ → ⟦ k ⟧K
 
   -- relational model
@@ -206,10 +213,11 @@ module Calculus where
     open Standard I ⟦_⟧TyVar₂ renaming (⟦_⟧Ty to ⟦_⟧Ty₂; ⟦_⟧Ctx to ⟦_⟧Ctx₂; ⟦_⟧Var to ⟦_⟧Var₂; module Term to Term₂)
 
     ⟦_⟧Ty : (A : Ty I) → Rel (⟦ A ⟧Ty₁) (⟦ A ⟧Ty₂)
-    ⟦ bool ⟧Ty  = BoolRel
+    ⟦ bool  ⟧Ty = BoolRel
     ⟦ A ⇒ B ⟧Ty = ⟦ A ⟧Ty →Rel ⟦ B ⟧Ty
     ⟦ A ∧ B ⟧Ty = ⟦ A ⟧Ty ×Rel  ⟦ B ⟧Ty
-    ⟦ X x ⟧Ty   = ⟦ x ⟧TyVarRel
+    ⟦ unit  ⟧Ty = ⊤Rel
+    ⟦ X x   ⟧Ty = ⟦ x ⟧TyVarRel
 
     ⟦_⟧Ctx : (Γ : Ctx I) → Rel (⟦ Γ ⟧Ctx₁) (⟦ Γ ⟧Ctx₂)
     ⟦ []    ⟧Ctx = ⊤Rel
@@ -245,6 +253,7 @@ module Calculus where
       ⟦_⟧Tm {_} {A} (fst {B = B} t) γ₁Rγ₂ = proj₁Rel {R₁ = ⟦ A ⟧Ty} {R₂ = ⟦ B ⟧Ty} (⟦ t ⟧Tm γ₁Rγ₂)
       ⟦_⟧Tm {_} {B} (snd {A = A} t) γ₁Rγ₂ = proj₂Rel {R₁ = ⟦ A ⟧Ty} {R₂ = ⟦ B ⟧Ty} (⟦ t ⟧Tm γ₁Rγ₂)
       ⟦_⟧Tm (prd t t₁) γ₁Rγ₂ = (⟦ t ⟧Tm γ₁Rγ₂) , (⟦ t₁ ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm unit γ₁Rγ₂       = tt
       ⟦_⟧Tm {_} {A} (konst k) γ₁Rγ₂ = ⟦ k ⟧KRel
 
   -- example of NI in the two-point lattice

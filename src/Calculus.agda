@@ -22,13 +22,14 @@ module Calculus where
     using (_≡_; refl)
   open import Data.Bool
     using (Bool; true; false; if_then_else_)
-  open import Relation.Binary
+  open import Relation.Binary as R
     hiding (_⇒_; Rel)
   open import Level
     renaming (zero to ℓzero) hiding (suc)
 
   module Type (I : Set) where
 
+    infixl 5 _;_
     infixr 6 _⇒_
     infixr 7 _∧_
 
@@ -44,10 +45,13 @@ module Calculus where
     Ctx : Set
     Ctx = List Ty
 
+    pattern _;_ xs x = x ∷ xs
+
   open Type
 
-  -- I is the set of free variables; J is the index for typed constants;
-  -- K is the set of typed constants
+  -- I is the set of base types,
+  -- J is the set of constants, and
+  -- K is the function assigning the type K j to the constant j
   module Calculus (I : Set) (J : Set) (K : J → Ty I) where
 
     infix  2 _⊢_
@@ -60,60 +64,60 @@ module Calculus where
     data _⊢_ (Γ : Ctx I) : Ty I → Set where
 
         var : A ∈ Γ
-            --------
+            -------
             → Γ ⊢ A 
 
-        lam : A ∷ Γ ⊢ B
-            ---------------
+        lam : Γ ; A ⊢ B
+            -----------
             → Γ ⊢ A ⇒ B
 
         app : Γ ⊢ A ⇒ B → Γ ⊢ A
-            ----------------------
+            -------------------
             →       Γ ⊢ B
 
         true false : --------
                      Γ ⊢ bool
 
         ifte : Γ ⊢ bool → Γ ⊢ A → Γ ⊢ A
-             ----------------------------
-             →       Γ ⊢ A
+             --------------------------
+             →          Γ ⊢ A
 
         fst : Γ ⊢ A ∧ B
-            ---------------
-            → Γ ⊢ A
+            -----------
+            →   Γ ⊢ A
         
         snd : Γ ⊢ A ∧ B
-            ---------------
-            → Γ ⊢ B
+            -----------
+            →   Γ ⊢ B
 
         prd : Γ ⊢ A → Γ ⊢ B 
             ---------------
-            → Γ ⊢ A ∧ B
+            →   Γ ⊢ A ∧ B
 
         unit :
               --------
               Γ ⊢ unit
 
         konst : (j : J)
-              --------
+              ---------
               → Γ ⊢ K j
 
-    b0 : A ∈ A ∷ Γ
+    b0 : A ∈ Γ ; A
     b0 = here refl
 
-    b1 : A ∈ B ∷ A ∷ Γ
+    b1 : A ∈ Γ ; A ; B
     b1 = there b0
 
-    b2 : A ∈ C ∷ B ∷ A ∷ Γ
+    b2 : A ∈ Γ ; A ; B ; C
     b2 = there b1
 
-    v0 : A ∷ Γ ⊢ A
+    v0 : Γ ; A ⊢ A
     v0 = var b0
 
-    v1 : B ∷ A ∷ Γ ⊢ A
+    v1 : Γ ; A ; B ⊢ A
     v1 = var b1
 
-    v2 : C ∷ B ∷ A ∷ Γ ⊢ A
+    v2 : Γ ; A ; B ; C ⊢ A
     v2 = var b2
 
     -- "security monad"
@@ -146,11 +150,11 @@ module Calculus where
 
     ⟦_⟧Ctx : Ctx I → Set
     ⟦ []    ⟧Ctx = ⊤
-    ⟦ A ∷ Γ ⟧Ctx = (⟦ A ⟧Ty) × (⟦ Γ ⟧Ctx)
+    ⟦ Γ ; A ⟧Ctx = ⟦ Γ ⟧Ctx × ⟦ A ⟧Ty
 
     ⟦_⟧Var : ∀ {A} {Γ} → A ∈ Γ → ⟦ Γ ⟧Ctx → ⟦ A ⟧Ty
-    ⟦ here refl ⟧Var = proj₁
-    ⟦ there x   ⟧Var = ⟦ x ⟧Var ∘ proj₂
+    ⟦ here refl ⟧Var = proj₂
+    ⟦ there x   ⟧Var = ⟦ x ⟧Var ∘ proj₁
 
     module Term (J : Set) (K : J → Ty I) (⟦_⟧K : ∀ (j : J) → ⟦ K j ⟧Ty) where
 
@@ -158,7 +162,7 @@ module Calculus where
 
       ⟦_⟧Tm : Γ ⊢ A →  ⟦ Γ ⟧Ctx → ⟦ A ⟧Ty
       ⟦ var x        ⟧Tm = ⟦ x ⟧Var
-      ⟦ lam t        ⟧Tm = λ γ → λ x → ⟦ t ⟧Tm (x , γ)
+      ⟦ lam t        ⟧Tm = λ γ → λ x → ⟦ t ⟧Tm (γ , x)
       ⟦ app t u      ⟧Tm = λ γ → ⟦ t ⟧Tm γ (⟦ u ⟧Tm γ)
       ⟦ true         ⟧Tm = λ γ → true
       ⟦ false        ⟧Tm = λ γ → false
@@ -221,14 +225,14 @@ module Calculus where
 
     ⟦_⟧Ctx : (Γ : Ctx I) → Rel (⟦ Γ ⟧Ctx₁) (⟦ Γ ⟧Ctx₂)
     ⟦ []    ⟧Ctx = ⊤Rel
-    ⟦ A ∷ Γ ⟧Ctx = (⟦ A ⟧Ty) ×Rel (⟦ Γ ⟧Ctx)
+    ⟦ Γ ; A ⟧Ctx = ⟦ Γ ⟧Ctx ×Rel ⟦ A ⟧Ty
 
     ⟦_⟧Var : ∀ {A} {Γ} {γ₁ :  ⟦ Γ ⟧Ctx₁} {γ₂ : ⟦ Γ ⟧Ctx₂}
               → (A∈Γ : A ∈ Γ)
               → ⟦ Γ ⟧Ctx γ₁ γ₂
               → ⟦ A ⟧Ty (⟦ A∈Γ ⟧Var₁ γ₁) (⟦ A∈Γ ⟧Var₂ γ₂)
-    ⟦ here refl ⟧Var = proj₁
-    ⟦ there x   ⟧Var = ⟦ x  ⟧Var ∘ proj₂
+    ⟦ here refl ⟧Var = proj₂
+    ⟦ there x   ⟧Var = ⟦ x  ⟧Var ∘ proj₁
 
     module Term (J : Set) (K : J → Ty I)
                           (⟦_⟧K₁   : ∀ (j : J) → ⟦ K j ⟧Ty₁)
@@ -244,17 +248,17 @@ module Calculus where
       ⟦_⟧Tm : ∀ {Γ} {A} {γ₁ : ⟦ Γ ⟧Ctx₁} {γ₂ : ⟦ Γ ⟧Ctx₂}
               → (t : Γ ⊢ A)
               → ⟦ Γ ⟧Ctx γ₁ γ₂ → ⟦ A ⟧Ty (⟦ t ⟧Tm₁ γ₁) (⟦ t ⟧Tm₂ γ₂)
-      ⟦_⟧Tm (var x) γ₁Rγ₂   = ⟦ x ⟧Var γ₁Rγ₂
-      ⟦_⟧Tm (lam t) γ₁Rγ₂   = λ γ₁Rγ₂' → ⟦ t ⟧Tm (γ₁Rγ₂' , γ₁Rγ₂)
-      ⟦_⟧Tm (app t u) γ₁Rγ₂ = ⟦ t ⟧Tm γ₁Rγ₂ (⟦ u ⟧Tm γ₁Rγ₂)
-      ⟦_⟧Tm true γ₁Rγ₂      = refl
-      ⟦_⟧Tm false γ₁Rγ₂     = refl
-      ⟦_⟧Tm {_} {A} (ifte b t₁ t₂) γ₁Rγ₂ = ifteRel {R = ⟦ A ⟧Ty} (⟦ b ⟧Tm  γ₁Rγ₂) (⟦ t₁ ⟧Tm γ₁Rγ₂) (⟦ t₂ ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm (var x)                 γ₁Rγ₂ = ⟦ x ⟧Var γ₁Rγ₂
+      ⟦_⟧Tm (lam t)                 γ₁Rγ₂ = λ γ₁Rγ₂' → ⟦ t ⟧Tm (γ₁Rγ₂ , γ₁Rγ₂')
+      ⟦_⟧Tm (app t u)               γ₁Rγ₂ = ⟦ t ⟧Tm γ₁Rγ₂ (⟦ u ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm true                    γ₁Rγ₂ = refl
+      ⟦_⟧Tm false                   γ₁Rγ₂ = refl
+      ⟦_⟧Tm {_} {A} (ifte b t₁ t₂)  γ₁Rγ₂ = ifteRel {R = ⟦ A ⟧Ty} (⟦ b ⟧Tm  γ₁Rγ₂) (⟦ t₁ ⟧Tm γ₁Rγ₂) (⟦ t₂ ⟧Tm γ₁Rγ₂)
       ⟦_⟧Tm {_} {A} (fst {B = B} t) γ₁Rγ₂ = proj₁Rel {R₁ = ⟦ A ⟧Ty} {R₂ = ⟦ B ⟧Ty} (⟦ t ⟧Tm γ₁Rγ₂)
       ⟦_⟧Tm {_} {B} (snd {A = A} t) γ₁Rγ₂ = proj₂Rel {R₁ = ⟦ A ⟧Ty} {R₂ = ⟦ B ⟧Ty} (⟦ t ⟧Tm γ₁Rγ₂)
-      ⟦_⟧Tm (prd t t₁) γ₁Rγ₂ = (⟦ t ⟧Tm γ₁Rγ₂) , (⟦ t₁ ⟧Tm γ₁Rγ₂)
-      ⟦_⟧Tm unit γ₁Rγ₂       = tt
-      ⟦_⟧Tm {_} {A} (konst k) γ₁Rγ₂ = ⟦ k ⟧KRel
+      ⟦_⟧Tm (prd t u)               γ₁Rγ₂ = ⟦ t ⟧Tm γ₁Rγ₂ , ⟦ u ⟧Tm γ₁Rγ₂
+      ⟦_⟧Tm unit                    γ₁Rγ₂ = tt
+      ⟦_⟧Tm {_} {A} (konst k)       γ₁Rγ₂ = ⟦ k ⟧KRel
 
   -- example of NI in the two-point lattice
   module TwoPoint where
@@ -311,10 +315,10 @@ module Calculus where
     open Term Three K ⟦_⟧K ⟦_⟧K ⟦_⟧KRel
 
     -- non-interference follows from the abstraction theorem
-    ni : ∀ (t : T H bool ∷ [] ⊢ bool)
+    ni : ∀ (t : [] ; T H bool ⊢ bool)
          → (s₁ s₂ : [] ⊢ T H bool)
-         → (⟦ t ⟧Tm₁ ((⟦ s₁ ⟧Tm₁ tt) , tt)) ≡ (⟦ t ⟧Tm₂ ((⟦ s₂ ⟧Tm₂ tt) , tt))
-    ni t s₁ s₂ = ⟦ t ⟧Tm (s₁Rs₂ , tt)
+         → (⟦ t ⟧Tm₁ (tt , ⟦ s₁ ⟧Tm₁ tt) ≡ ⟦ t ⟧Tm₂ (tt , ⟦ s₂ ⟧Tm₂ tt))
+    ni t s₁ s₂ = ⟦ t ⟧Tm (tt , s₁Rs₂)
        where
          s₁Rs₂ : ⟦ T H bool ⟧TyRel (⟦ s₁ ⟧Tm₂ tt) (⟦ s₂ ⟧Tm₂ tt)
-         s₁Rs₂  ()
+         s₁Rs₂ ()

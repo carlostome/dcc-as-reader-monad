@@ -30,11 +30,13 @@ module Calculus where
   module Type (I : Set) where
 
     infixr 6 _⇒_
+    infixr 7 _∧_
 
     -- A type with I free variables
     data Ty : Set where
       bool : Ty
       _⇒_  : (a b : Ty) → Ty
+      _∧_  : (a b : Ty) → Ty
       X    : I → Ty
 
     -- A context Γ is a list of types
@@ -74,6 +76,18 @@ module Calculus where
         ifte : Γ ⊢ bool → Γ ⊢ A → Γ ⊢ A
              ----------------------------
              →       Γ ⊢ A
+
+        fst : Γ ⊢ A ∧ B
+            ---------------
+            → Γ ⊢ A
+        
+        snd : Γ ⊢ A ∧ B
+            ---------------
+            → Γ ⊢ B
+
+        prd : Γ ⊢ A → Γ ⊢ B 
+            ---------------
+            → Γ ⊢ A ∧ B
 
         konst : (j : J)
               --------
@@ -121,6 +135,7 @@ module Calculus where
     ⟦_⟧Ty : Ty I → Set
     ⟦ bool  ⟧Ty = Bool
     ⟦ A ⇒ B ⟧Ty = ⟦ A ⟧Ty → ⟦ B ⟧Ty
+    ⟦ A ∧ B ⟧Ty = ⟦ A ⟧Ty × ⟦ B ⟧Ty
     ⟦ X x   ⟧Ty = ⟦ x ⟧TyVar
 
     ⟦_⟧Ctx : Ctx I → Set
@@ -142,6 +157,9 @@ module Calculus where
       ⟦ true         ⟧Tm = λ γ → true
       ⟦ false        ⟧Tm = λ γ → false
       ⟦ ifte t t₁ t₂ ⟧Tm = λ γ → if ⟦ t ⟧Tm γ then ⟦ t₁ ⟧Tm γ else ⟦ t₂ ⟧Tm γ
+      ⟦ fst t        ⟧Tm = λ γ → proj₁ (⟦ t ⟧Tm γ)
+      ⟦ snd t        ⟧Tm = λ γ → proj₂ (⟦ t ⟧Tm γ)
+      ⟦ prd t₁ t₂    ⟧Tm = λ γ → ⟦ t₁ ⟧Tm γ , ⟦ t₂ ⟧Tm γ 
       ⟦ konst k      ⟧Tm = λ _ → ⟦ k ⟧K
 
   -- relational model
@@ -189,7 +207,8 @@ module Calculus where
 
     ⟦_⟧Ty : (A : Ty I) → Rel (⟦ A ⟧Ty₁) (⟦ A ⟧Ty₂)
     ⟦ bool ⟧Ty  = BoolRel
-    ⟦ A ⇒ B ⟧Ty = (⟦ A ⟧Ty) →Rel (⟦ B ⟧Ty)
+    ⟦ A ⇒ B ⟧Ty = ⟦ A ⟧Ty →Rel ⟦ B ⟧Ty
+    ⟦ A ∧ B ⟧Ty = ⟦ A ⟧Ty ×Rel  ⟦ B ⟧Ty
     ⟦ X x ⟧Ty   = ⟦ x ⟧TyVarRel
 
     ⟦_⟧Ctx : (Γ : Ctx I) → Rel (⟦ Γ ⟧Ctx₁) (⟦ Γ ⟧Ctx₂)
@@ -223,6 +242,9 @@ module Calculus where
       ⟦_⟧Tm true γ₁Rγ₂      = refl
       ⟦_⟧Tm false γ₁Rγ₂     = refl
       ⟦_⟧Tm {_} {A} (ifte b t₁ t₂) γ₁Rγ₂ = ifteRel {R = ⟦ A ⟧Ty} (⟦ b ⟧Tm  γ₁Rγ₂) (⟦ t₁ ⟧Tm γ₁Rγ₂) (⟦ t₂ ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm {_} {A} (fst {B = B} t) γ₁Rγ₂ = proj₁Rel {R₁ = ⟦ A ⟧Ty} {R₂ = ⟦ B ⟧Ty} (⟦ t ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm {_} {B} (snd {A = A} t) γ₁Rγ₂ = proj₂Rel {R₁ = ⟦ A ⟧Ty} {R₂ = ⟦ B ⟧Ty} (⟦ t ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm (prd t t₁) γ₁Rγ₂ = (⟦ t ⟧Tm γ₁Rγ₂) , (⟦ t₁ ⟧Tm γ₁Rγ₂)
       ⟦_⟧Tm {_} {A} (konst k) γ₁Rγ₂ = ⟦ k ⟧KRel
 
   -- example of NI in the two-point lattice

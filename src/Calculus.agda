@@ -351,17 +351,17 @@ module Calculus where
       ⟦_⟧Tm : ∀ {γ₁ : ⟦ Γ ⟧Ctx₁} {γ₂ : ⟦ Γ ⟧Ctx₂}
                → (t : Γ ⊢ a)
                → ⟦ Γ ⟧Ctx γ₁ γ₂ → ⟦ a ⟧Ty (⟦ t ⟧Tm₁ γ₁) (⟦ t ⟧Tm₂ γ₂)
-      ⟦_⟧Tm (var x)                 γ₁Rγ₂ = ⟦ x ⟧Var γ₁Rγ₂
-      ⟦_⟧Tm {Γ} {a ⇒ b} (lam t)     γ₁Rγ₂ = absRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S' = ⟨ ⟦ a ⟧Ty ⟩} {S = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} {b}     (app t u)   γ₁Rγ₂ = appRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                    {S = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} true                γ₁Rγ₂ = trueRel   {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                              .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} false               γ₁Rγ₂ = falseRel  {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                              .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} {a} (ifte b t₁ t₂)  γ₁Rγ₂ = ifteRel   {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} ⟨ ⟦ b ⟧Tm ⟩ ⟨ ⟦ t₁ ⟧Tm ⟩ ⟨ ⟦ t₂ ⟧Tm ⟩      .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} {a} (fst {b = b} t) γ₁Rγ₂ = fstRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} {b} (snd {a = a} t) γ₁Rγ₂ = sndRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} {a ∧ b} (prd t u)   γ₁Rγ₂ = prdRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} unit                γ₁Rγ₂ = ttRel     {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                              .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} (konst k)           γ₁Rγ₂ = ⟦ k ⟧KRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} γ₁Rγ₂
+      ⟦_⟧Tm {_} (var x)            γ₁Rγ₂ = ⟦ x ⟧Var                                                                                       γ₁Rγ₂
+      ⟦_⟧Tm {Γ} (lam {a} {b} t)    γ₁Rγ₂ = absRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S' = ⟨ ⟦ a ⟧Ty ⟩} {S = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} (app {a} {b} t u)  γ₁Rγ₂ = appRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                    {S = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} true               γ₁Rγ₂ = trueRel   {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                              .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} false              γ₁Rγ₂ = falseRel  {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                              .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} (ifte {a} b t u)   γ₁Rγ₂ = ifteRel   {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} ⟨ ⟦ b ⟧Tm ⟩ ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩        .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} (fst {a} {b} t)    γ₁Rγ₂ = fstRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} (snd {a} {b} t)    γ₁Rγ₂ = sndRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} (prd {a} {b} t u)  γ₁Rγ₂ = prdRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} unit               γ₁Rγ₂ = ttRel     {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                              .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} (konst k)          γ₁Rγ₂ = ⟦ k ⟧KRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                                   γ₁Rγ₂
 
   -- example of NI in the two-point lattice
   module TwoPoint where

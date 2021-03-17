@@ -13,9 +13,9 @@ module Calculus where
   open import Data.List.Relation.Unary.Any
     using (here; there)
   open import Data.Product
-    using (_,_; _×_; proj₁; proj₂)
+    using (_,_; _×_; <_,_>; proj₁; proj₂)
   open import Function
-    using (_∘_)
+    using (id; _∘_)
   open import Data.Unit
     using (⊤; tt)
   open import Relation.Binary.PropositionalEquality
@@ -173,39 +173,114 @@ module Calculus where
       ⟦ unit         ⟧Tm = λ γ → tt
       ⟦ konst k      ⟧Tm = λ _ → ⟦ k ⟧K
 
+  private
+    variable
+      A A' B B' C D : Set
+
   -- relational model
   Rel : Set → Set → Set₁
-  Rel A B = A → B → Set
+  Rel A B = R.REL {a = ℓzero} {b = ℓzero} A B ℓzero
+
+  _→-rel_ : Rel A B → Rel C D → Rel (A → C) (B → D)
+  _→-rel_  {A} {B} R₁ R₂ f g = ∀ {a : A} {b : B} → R₁ a b → R₂ (f a) (g b)
+
+  -- Dom <--- Grf ---> Cod
+  record Rel₀ : Set₁ where
+    constructor ⟨_⟩
+    field
+      {Dom} : Set
+      {Cod} : Set
+      Grf   : Rel Dom Cod
+
+  -- R₀ <-- R --> R₁
+  --  |     |     |
+  -- dom   prs   cod
+  --  |     |     |
+  --  v     v     v
+  -- S₀ <-- S --> S₁
+  record Rel₁ (X : Rel₀) (Y : Rel₀) : Set where
+    constructor ⟨_⟩
+    open Rel₀ X renaming (Dom to R₀; Cod to R₁; Grf to R)
+    open Rel₀ Y renaming (Dom to S₀; Cod to S₁; Grf to S)
+    field
+      {dom} : R₀ → S₀
+      {cod} : R₁ → S₁
+      prs   : _→-rel_ R S dom cod
+
+  open Rel₀
+  open Rel₁
 
   private
     variable
-      A B C D : Set
+      R R' R'' S S' : Rel₀
 
-  -- Arrow of relations
-  _→Rel_ : Rel A B → Rel C D → Rel (A → C) (B → D)
-  _→Rel_  {A} {B} R₁ R₂ f g = ∀ {a : A} {b : B} → R₁ a b → R₂ (f a) (g b) 
+  idRel : Rel₁ R R
+  idRel .dom = id
+  idRel .cod = id
+  idRel .prs = id
+
+  _∘Rel_ : Rel₁ R' R'' → Rel₁ R R' → Rel₁ R R''
+  _∘Rel_ f g .dom = f .dom ∘ g .dom
+  _∘Rel_ f g .cod = f .cod ∘ g .cod
+  _∘Rel_ f g .prs = f .prs ∘ g .prs
 
   -- Product of relations
-  _×Rel_ : Rel A B → Rel C D → Rel (A × C) (B × D)
-  _×Rel_ R₁ R₂ (a , c) (b , d) = (R₁ a b) × (R₂ c d)
+  _×-rel_ : Rel A B → Rel C D → Rel (A × C) (B × D)
+  _×-rel_ R S (a , c) (b , d) = R a b × S c d
 
-  proj₁Rel : {R₁ : Rel A B} {R₂ : Rel C D} → ((R₁ ×Rel R₂) →Rel R₁) proj₁ proj₁
-  proj₁Rel = proj₁
+  _×Rel_ : Rel₀ → Rel₀ → Rel₀
+  _×Rel_ R S .Dom = R .Dom × S .Dom
+  _×Rel_ R S .Cod = R .Cod × S .Cod
+  _×Rel_ R S .Grf = R .Grf ×-rel S .Grf
 
-  proj₂Rel : {R₁ : Rel A B} {R₂ : Rel C D} → ((R₁ ×Rel R₂) →Rel R₂) proj₂ proj₂
-  proj₂Rel = proj₂
+  pairRel : Rel₁ R S → Rel₁ R S' → Rel₁ R (S ×Rel S')
+  pairRel f g .dom = < f .dom , g .dom >
+  pairRel f g .cod = < f .cod , g .cod >
+  pairRel f g .prs = < f .prs , g .prs >
+
+  proj₁Rel : (R S : Rel₀) → Rel₁ (R ×Rel S) R
+  proj₁Rel R S .dom = proj₁
+  proj₁Rel R S .cod = proj₁
+  proj₁Rel R S .prs = proj₁
+
+  proj₂Rel : (R S : Rel₀) → Rel₁ (R ×Rel S) S
+  proj₂Rel R S .dom = proj₂
+  proj₂Rel R S .cod = proj₂
+  proj₂Rel R S .prs = proj₂
+
+  -- Exponential of relations
+  _→Rel_ : Rel₀ → Rel₀ → Rel₀
+  _→Rel_ R₁ R₂ .Dom = R₁ .Dom → R₂ .Dom
+  _→Rel_ R₁ R₂ .Cod = R₁ .Cod → R₂ .Cod
+  _→Rel_ R₁ R₂ .Grf = R₁ .Grf →-rel R₂ .Grf
+
+  absRel : Rel₁ (R ×Rel S') S → Rel₁ R (S' →Rel S)
+  absRel f .dom = λ r s → f .dom (r , s)
+  absRel f .cod = λ r s → f .cod (r , s)
+  absRel f .prs = λ r s → f .prs (r , s)
+
+  appRel : Rel₁ R (S' →Rel S) → Rel₁ R S' → Rel₁ R S
+  appRel f x .dom = λ r → f .dom r (x .dom r)
+  appRel f x .cod = λ r → f .cod r (x .cod r)
+  appRel f x .prs = λ r → f .prs r (x .prs r)
 
   -- Terminal relation
-  ⊤Rel : ∀ {A B : Set} → Rel A B
-  ⊤Rel _ _ = ⊤
+  ⊤Rel : Rel₀
+  ⊤Rel .Dom = ⊤
+  ⊤Rel .Cod = ⊤
+  ⊤Rel .Grf = λ _ _ → ⊤
 
-  BoolRel : Rel Bool Bool
-  BoolRel = _≡_
+  -- Boolean relation
+  BoolRel : Rel₀
+  BoolRel .Dom = Bool
+  BoolRel .Cod = Bool
+  BoolRel .Grf = _≡_
 
-  ifteRel : ∀ {R : Rel A B} {b b'} {t₁ t₂ t₁' t₂'}
-              → BoolRel b b' → R t₁ t₁' → R t₂ t₂' → R (if b then t₁ else t₂) (if b' then t₁' else t₂')
-  ifteRel {b = true } refl r₁ r₂ = r₁
-  ifteRel {b = false} refl r₁ r₂ = r₂
+  ifteRel : Rel₁ R S → Rel₁ R S → Rel₁ (R ×Rel BoolRel) S
+  ifteRel t e .dom                            (r     , b)    = if b then t .dom r else e .dom r
+  ifteRel t e .cod                            (r     , b)    = if b then t .cod r else e .cod r
+  ifteRel t e .prs {r₀ , true}  {r₁ , .true}  (r₀Rr₁ , refl) = t .prs r₀Rr₁
+  ifteRel t e .prs {r₀ , false} {r₁ , .false} (r₀Rr₁ , refl) = e .prs r₀Rr₁
 
   -- relational interpretation of the calculus
   module Relational (I : Set) (⟦_⟧TyVar₁ : I → Set)
@@ -217,15 +292,15 @@ module Calculus where
     open Standard I ⟦_⟧TyVar₂ renaming (⟦_⟧Ty to ⟦_⟧Ty₂; ⟦_⟧Ctx to ⟦_⟧Ctx₂; ⟦_⟧Var to ⟦_⟧Var₂; module Term to Term₂)
 
     ⟦_⟧Ty : (A : Ty I) → Rel (⟦ A ⟧Ty₁) (⟦ A ⟧Ty₂)
-    ⟦ bool  ⟧Ty = BoolRel
-    ⟦ A ⇒ B ⟧Ty = ⟦ A ⟧Ty →Rel ⟦ B ⟧Ty
-    ⟦ A ∧ B ⟧Ty = ⟦ A ⟧Ty ×Rel  ⟦ B ⟧Ty
-    ⟦ unit  ⟧Ty = ⊤Rel
+    ⟦ bool  ⟧Ty = BoolRel .Grf
+    ⟦ A ⇒ B ⟧Ty = (⟨ ⟦ A ⟧Ty ⟩ →Rel ⟨ ⟦ B ⟧Ty ⟩) .Grf
+    ⟦ A ∧ B ⟧Ty = (⟨ ⟦ A ⟧Ty ⟩ ×Rel ⟨ ⟦ B ⟧Ty ⟩) .Grf
+    ⟦ unit  ⟧Ty = ⊤Rel .Grf
     ⟦ X x   ⟧Ty = ⟦ x ⟧TyVarRel
 
     ⟦_⟧Ctx : (Γ : Ctx I) → Rel (⟦ Γ ⟧Ctx₁) (⟦ Γ ⟧Ctx₂)
-    ⟦ []    ⟧Ctx = ⊤Rel
-    ⟦ Γ ; A ⟧Ctx = ⟦ Γ ⟧Ctx ×Rel ⟦ A ⟧Ty
+    ⟦ []    ⟧Ctx = ⊤Rel .Grf
+    ⟦ Γ ; A ⟧Ctx = (⟨ ⟦ Γ ⟧Ctx ⟩ ×Rel ⟨ ⟦ A ⟧Ty ⟩) .Grf
 
     ⟦_⟧Var : ∀ {A} {Γ} {γ₁ :  ⟦ Γ ⟧Ctx₁} {γ₂ : ⟦ Γ ⟧Ctx₂}
               → (A∈Γ : A ∈ Γ)
@@ -249,13 +324,13 @@ module Calculus where
               → (t : Γ ⊢ A)
               → ⟦ Γ ⟧Ctx γ₁ γ₂ → ⟦ A ⟧Ty (⟦ t ⟧Tm₁ γ₁) (⟦ t ⟧Tm₂ γ₂)
       ⟦_⟧Tm (var x)                 γ₁Rγ₂ = ⟦ x ⟧Var γ₁Rγ₂
-      ⟦_⟧Tm (lam t)                 γ₁Rγ₂ = λ γ₁Rγ₂' → ⟦ t ⟧Tm (γ₁Rγ₂ , γ₁Rγ₂')
-      ⟦_⟧Tm (app t u)               γ₁Rγ₂ = ⟦ t ⟧Tm γ₁Rγ₂ (⟦ u ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm {Γ} {A ⇒ B} (lam t)     γ₁Rγ₂ = absRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S' = ⟨ ⟦ A ⟧Ty ⟩} {S = ⟨ ⟦ B ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} {B}     (app t u)   γ₁Rγ₂ = appRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                    {S = ⟨ ⟦ B ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
       ⟦_⟧Tm true                    γ₁Rγ₂ = refl
       ⟦_⟧Tm false                   γ₁Rγ₂ = refl
-      ⟦_⟧Tm {_} {A} (ifte b t₁ t₂)  γ₁Rγ₂ = ifteRel {R = ⟦ A ⟧Ty} (⟦ b ⟧Tm  γ₁Rγ₂) (⟦ t₁ ⟧Tm γ₁Rγ₂) (⟦ t₂ ⟧Tm γ₁Rγ₂)
-      ⟦_⟧Tm {_} {A} (fst {B = B} t) γ₁Rγ₂ = proj₁Rel {R₁ = ⟦ A ⟧Ty} {R₂ = ⟦ B ⟧Ty} (⟦ t ⟧Tm γ₁Rγ₂)
-      ⟦_⟧Tm {_} {B} (snd {A = A} t) γ₁Rγ₂ = proj₂Rel {R₁ = ⟦ A ⟧Ty} {R₂ = ⟦ B ⟧Ty} (⟦ t ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm {Γ} {A} (ifte b t₁ t₂)  γ₁Rγ₂ = (ifteRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ A ⟧Ty ⟩} ⟨ ⟦ t₁ ⟧Tm ⟩ ⟨ ⟦ t₂ ⟧Tm ⟩) .prs (γ₁Rγ₂ , ⟦ b ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm {_} {A} (fst {B = B} t) γ₁Rγ₂ = proj₁Rel ⟨ ⟦ A ⟧Ty ⟩ ⟨ ⟦ B ⟧Ty ⟩ .prs (⟦ t ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm {_} {B} (snd {A = A} t) γ₁Rγ₂ = proj₂Rel ⟨ ⟦ A ⟧Ty ⟩ ⟨ ⟦ B ⟧Ty ⟩ .prs (⟦ t ⟧Tm γ₁Rγ₂)
       ⟦_⟧Tm (prd t u)               γ₁Rγ₂ = ⟦ t ⟧Tm γ₁Rγ₂ , ⟦ u ⟧Tm γ₁Rγ₂
       ⟦_⟧Tm unit                    γ₁Rγ₂ = tt
       ⟦_⟧Tm {_} {A} (konst k)       γ₁Rγ₂ = ⟦ k ⟧KRel

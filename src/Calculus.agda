@@ -57,42 +57,42 @@ module Calculus where
     infix  2 _⊢_
 
     variable
-      A B C : Ty I
+      a b c : Ty I
       Γ Γ'  : Ctx I
 
     -- terms
     data _⊢_ (Γ : Ctx I) : Ty I → Set where
 
-        var : A ∈ Γ
+        var : a ∈ Γ
             -------
-            → Γ ⊢ A 
+            → Γ ⊢ a
 
-        lam : Γ ; A ⊢ B
+        lam : Γ ; a ⊢ b
             -----------
-            → Γ ⊢ A ⇒ B
+            → Γ ⊢ a ⇒ b
 
-        app : Γ ⊢ A ⇒ B → Γ ⊢ A
+        app : Γ ⊢ a ⇒ b → Γ ⊢ a
             -------------------
-            →       Γ ⊢ B
+            →       Γ ⊢ b
 
         true false : --------
                      Γ ⊢ bool
 
-        ifte : Γ ⊢ bool → Γ ⊢ A → Γ ⊢ A
+        ifte : Γ ⊢ bool → Γ ⊢ a → Γ ⊢ a
              --------------------------
-             →          Γ ⊢ A
+             →          Γ ⊢ a
 
-        fst : Γ ⊢ A ∧ B
+        fst : Γ ⊢ a ∧ b
             -----------
-            →   Γ ⊢ A
-        
-        snd : Γ ⊢ A ∧ B
-            -----------
-            →   Γ ⊢ B
+            →   Γ ⊢ a
 
-        prd : Γ ⊢ A → Γ ⊢ B 
+        snd : Γ ⊢ a ∧ b
+            -----------
+            →   Γ ⊢ b
+
+        prd : Γ ⊢ a → Γ ⊢ b
             ---------------
-            →   Γ ⊢ A ∧ B
+            →   Γ ⊢ a ∧ b
 
         unit :
               --------
@@ -102,40 +102,40 @@ module Calculus where
               ---------
               → Γ ⊢ K j
 
-    b0 : A ∈ Γ ; A
+    b0 : a ∈ Γ ; a
     b0 = here refl
 
-    b1 : A ∈ Γ ; A ; B
+    b1 : a ∈ Γ ; a ; b
     b1 = there b0
 
-    b2 : A ∈ Γ ; A ; B ; C
+    b2 : a ∈ Γ ; a ; b ; c
     b2 = there b1
 
-    v0 : Γ ; A ⊢ A
+    v0 : Γ ; a ⊢ a
     v0 = var b0
 
-    v1 : Γ ; A ; B ⊢ A
+    v1 : Γ ; a ; b ⊢ a
     v1 = var b1
 
-    v2 : Γ ; A ; B ; C ⊢ A
+    v2 : Γ ; a ; b ; c ⊢ a
     v2 = var b2
 
     -- "security monad"
     T : Ty I → Ty I → Ty I
-    T ℓ A = ℓ ⇒ A
+    T ℓ a = ℓ ⇒ a
     
     private
       variable
         i : I
         ℓ ℓ' : Ty I
 
-    return : Γ ⊢ A ⇒ T ℓ A
+    return : Γ ⊢ a ⇒ T ℓ a
     return = lam (lam v1)
 
-    let* :  Γ ⊢ T ℓ A ⇒ (A ⇒ T ℓ B) ⇒ T ℓ B
+    let* :  Γ ⊢ T ℓ a ⇒ (a ⇒ T ℓ b) ⇒ T ℓ b
     let* = lam (lam (lam (app (app v1 (app v2 v0)) v0)))
 
-    comm : Γ ⊢ T ℓ (T ℓ' A) ⇒ T ℓ' (T ℓ A)
+    comm : Γ ⊢ T ℓ (T ℓ' a) ⇒ T ℓ' (T ℓ a)
     comm = lam (lam (lam (app (app v2 v0) v1)))
 
   -- standard interpretation
@@ -143,24 +143,24 @@ module Calculus where
 
     ⟦_⟧Ty : Ty I → Set
     ⟦ bool  ⟧Ty = Bool
-    ⟦ A ⇒ B ⟧Ty = ⟦ A ⟧Ty → ⟦ B ⟧Ty
-    ⟦ A ∧ B ⟧Ty = ⟦ A ⟧Ty × ⟦ B ⟧Ty
+    ⟦ a ⇒ b ⟧Ty = ⟦ a ⟧Ty → ⟦ b ⟧Ty
+    ⟦ a ∧ b ⟧Ty = ⟦ a ⟧Ty × ⟦ b ⟧Ty
     ⟦ unit  ⟧Ty = ⊤
     ⟦ X x   ⟧Ty = ⟦ x ⟧TyVar
 
     ⟦_⟧Ctx : Ctx I → Set
     ⟦ []    ⟧Ctx = ⊤
-    ⟦ Γ ; A ⟧Ctx = ⟦ Γ ⟧Ctx × ⟦ A ⟧Ty
+    ⟦ Γ ; a ⟧Ctx = ⟦ Γ ⟧Ctx × ⟦ a ⟧Ty
 
-    ⟦_⟧Var : ∀ {A} {Γ} → A ∈ Γ → ⟦ Γ ⟧Ctx → ⟦ A ⟧Ty
-    ⟦ here refl ⟧Var = proj₂
-    ⟦ there x   ⟧Var = ⟦ x ⟧Var ∘ proj₁
-
-    module Term (J : Set) (K : J → Ty I) (⟦_⟧K : ∀ (j : J) → ⟦ K j ⟧Ty) where
+    module Term (J : Set) (K : J → Ty I) (⟦_⟧K : ∀ (j : J) {X} → (X → ⟦ K j ⟧Ty)) where
 
       open Calculus I J K
 
-      ⟦_⟧Tm : Γ ⊢ A →  ⟦ Γ ⟧Ctx → ⟦ A ⟧Ty
+      ⟦_⟧Var : a ∈ Γ → ⟦ Γ ⟧Ctx → ⟦ a ⟧Ty
+      ⟦ here refl ⟧Var = proj₂
+      ⟦ there x   ⟧Var = ⟦ x ⟧Var ∘ proj₁
+
+      ⟦_⟧Tm : Γ ⊢ a →  ⟦ Γ ⟧Ctx → ⟦ a ⟧Ty
       ⟦ var x        ⟧Tm = ⟦ x ⟧Var
       ⟦ lam t        ⟧Tm = λ γ → λ x → ⟦ t ⟧Tm (γ , x)
       ⟦ app t u      ⟧Tm = λ γ → ⟦ t ⟧Tm γ (⟦ u ⟧Tm γ)
@@ -171,7 +171,7 @@ module Calculus where
       ⟦ snd t        ⟧Tm = λ γ → proj₂ (⟦ t ⟧Tm γ)
       ⟦ prd t₁ t₂    ⟧Tm = λ γ → ⟦ t₁ ⟧Tm γ , ⟦ t₂ ⟧Tm γ 
       ⟦ unit         ⟧Tm = λ γ → tt
-      ⟦ konst k      ⟧Tm = λ _ → ⟦ k ⟧K
+      ⟦ konst k      ⟧Tm = λ γ → ⟦ k ⟧K γ
 
   private
     variable
@@ -238,15 +238,15 @@ module Calculus where
   pairRel f g .cod = < f .cod , g .cod >
   pairRel f g .prs = < f .prs , g .prs >
 
-  proj₁Rel : (R S : Rel₀) → Rel₁ (R ×Rel S) R
-  proj₁Rel R S .dom = proj₁
-  proj₁Rel R S .cod = proj₁
-  proj₁Rel R S .prs = proj₁
+  proj₁Rel : {R S : Rel₀} → Rel₁ (R ×Rel S) R
+  proj₁Rel .dom = proj₁
+  proj₁Rel .cod = proj₁
+  proj₁Rel .prs = proj₁
 
-  proj₂Rel : (R S : Rel₀) → Rel₁ (R ×Rel S) S
-  proj₂Rel R S .dom = proj₂
-  proj₂Rel R S .cod = proj₂
-  proj₂Rel R S .prs = proj₂
+  proj₂Rel : {R S : Rel₀} → Rel₁ (R ×Rel S) S
+  proj₂Rel .dom = proj₂
+  proj₂Rel .cod = proj₂
+  proj₂Rel .prs = proj₂
 
   -- Exponential of relations
   _→Rel_ : Rel₀ → Rel₀ → Rel₀
@@ -288,52 +288,52 @@ module Calculus where
                               (⟦_⟧TyVarRel : ∀ (i : I) → Rel (⟦ i ⟧TyVar₁)  (⟦ i ⟧TyVar₂))
                               where
 
-    open Standard I ⟦_⟧TyVar₁ renaming (⟦_⟧Ty to ⟦_⟧Ty₁; ⟦_⟧Ctx to ⟦_⟧Ctx₁; ⟦_⟧Var to ⟦_⟧Var₁; module Term to Term₁)
-    open Standard I ⟦_⟧TyVar₂ renaming (⟦_⟧Ty to ⟦_⟧Ty₂; ⟦_⟧Ctx to ⟦_⟧Ctx₂; ⟦_⟧Var to ⟦_⟧Var₂; module Term to Term₂)
+    open Standard I ⟦_⟧TyVar₁ renaming (⟦_⟧Ty to ⟦_⟧Ty₁; ⟦_⟧Ctx to ⟦_⟧Ctx₁; module Term to Term₁)
+    open Standard I ⟦_⟧TyVar₂ renaming (⟦_⟧Ty to ⟦_⟧Ty₂; ⟦_⟧Ctx to ⟦_⟧Ctx₂; module Term to Term₂)
 
-    ⟦_⟧Ty : (A : Ty I) → Rel (⟦ A ⟧Ty₁) (⟦ A ⟧Ty₂)
+    ⟦_⟧Ty : (a : Ty I) → Rel (⟦ a ⟧Ty₁) (⟦ a ⟧Ty₂)
     ⟦ bool  ⟧Ty = BoolRel .Grf
-    ⟦ A ⇒ B ⟧Ty = (⟨ ⟦ A ⟧Ty ⟩ →Rel ⟨ ⟦ B ⟧Ty ⟩) .Grf
-    ⟦ A ∧ B ⟧Ty = (⟨ ⟦ A ⟧Ty ⟩ ×Rel ⟨ ⟦ B ⟧Ty ⟩) .Grf
+    ⟦ a ⇒ b ⟧Ty = (⟨ ⟦ a ⟧Ty ⟩ →Rel ⟨ ⟦ b ⟧Ty ⟩) .Grf
+    ⟦ a ∧ b ⟧Ty = (⟨ ⟦ a ⟧Ty ⟩ ×Rel ⟨ ⟦ b ⟧Ty ⟩) .Grf
     ⟦ unit  ⟧Ty = ⊤Rel .Grf
     ⟦ X x   ⟧Ty = ⟦ x ⟧TyVarRel
 
     ⟦_⟧Ctx : (Γ : Ctx I) → Rel (⟦ Γ ⟧Ctx₁) (⟦ Γ ⟧Ctx₂)
     ⟦ []    ⟧Ctx = ⊤Rel .Grf
-    ⟦ Γ ; A ⟧Ctx = (⟨ ⟦ Γ ⟧Ctx ⟩ ×Rel ⟨ ⟦ A ⟧Ty ⟩) .Grf
-
-    ⟦_⟧Var : ∀ {A} {Γ} {γ₁ :  ⟦ Γ ⟧Ctx₁} {γ₂ : ⟦ Γ ⟧Ctx₂}
-              → (A∈Γ : A ∈ Γ)
-              → ⟦ Γ ⟧Ctx γ₁ γ₂
-              → ⟦ A ⟧Ty (⟦ A∈Γ ⟧Var₁ γ₁) (⟦ A∈Γ ⟧Var₂ γ₂)
-    ⟦ here refl ⟧Var = proj₂
-    ⟦ there x   ⟧Var = ⟦ x  ⟧Var ∘ proj₁
+    ⟦ Γ ; a ⟧Ctx = (⟨ ⟦ Γ ⟧Ctx ⟩ ×Rel ⟨ ⟦ a ⟧Ty ⟩) .Grf
 
     module Term (J : Set) (K : J → Ty I)
-                          (⟦_⟧K₁   : ∀ (j : J) → ⟦ K j ⟧Ty₁)
-                          (⟦_⟧K₂   : ∀ (j : J) → ⟦ K j ⟧Ty₂)
-                          (⟦_⟧KRel : ∀ (j : J) → ⟦ K j ⟧Ty ⟦ j ⟧K₁ ⟦ j ⟧K₂)
+                          (⟦_⟧K₁   : ∀ (j : J) {X₁} → (X₁ → ⟦ K j ⟧Ty₁))
+                          (⟦_⟧K₂   : ∀ (j : J) {X₂} → (X₂ → ⟦ K j ⟧Ty₂))
+                          (⟦_⟧KRel : ∀ (j : J) {R : Rel₀} → _→-rel_ (R .Grf) ⟦ K j ⟧Ty ⟦ j ⟧K₁ ⟦ j ⟧K₂)
                               where
 
       open Calculus I J K
-      open Term₁ J K ⟦_⟧K₁ renaming (⟦_⟧Tm to ⟦_⟧Tm₁) public
-      open Term₂ J K ⟦_⟧K₂ renaming (⟦_⟧Tm to ⟦_⟧Tm₂) public
+      open Term₁ J K ⟦_⟧K₁ renaming (⟦_⟧Tm to ⟦_⟧Tm₁; ⟦_⟧Var to ⟦_⟧Var₁) public
+      open Term₂ J K ⟦_⟧K₂ renaming (⟦_⟧Tm to ⟦_⟧Tm₂; ⟦_⟧Var to ⟦_⟧Var₂) public
+
+      ⟦_⟧Var : ∀ {γ₁ : ⟦ Γ ⟧Ctx₁} {γ₂ : ⟦ Γ ⟧Ctx₂}
+                → (a∈Γ : a ∈ Γ)
+                → ⟦ Γ ⟧Ctx γ₁ γ₂
+                → ⟦ a ⟧Ty (⟦ a∈Γ ⟧Var₁ γ₁) (⟦ a∈Γ ⟧Var₂ γ₂)
+      ⟦ here refl ⟧Var = proj₂
+      ⟦ there x   ⟧Var = ⟦ x  ⟧Var ∘ proj₁
 
       -- Reynolds abstraction theorem
-      ⟦_⟧Tm : ∀ {Γ} {A} {γ₁ : ⟦ Γ ⟧Ctx₁} {γ₂ : ⟦ Γ ⟧Ctx₂}
-              → (t : Γ ⊢ A)
-              → ⟦ Γ ⟧Ctx γ₁ γ₂ → ⟦ A ⟧Ty (⟦ t ⟧Tm₁ γ₁) (⟦ t ⟧Tm₂ γ₂)
+      ⟦_⟧Tm : ∀ {γ₁ : ⟦ Γ ⟧Ctx₁} {γ₂ : ⟦ Γ ⟧Ctx₂}
+               → (t : Γ ⊢ a)
+               → ⟦ Γ ⟧Ctx γ₁ γ₂ → ⟦ a ⟧Ty (⟦ t ⟧Tm₁ γ₁) (⟦ t ⟧Tm₂ γ₂)
       ⟦_⟧Tm (var x)                 γ₁Rγ₂ = ⟦ x ⟧Var γ₁Rγ₂
-      ⟦_⟧Tm {Γ} {A ⇒ B} (lam t)     γ₁Rγ₂ = absRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S' = ⟨ ⟦ A ⟧Ty ⟩} {S = ⟨ ⟦ B ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} {B}     (app t u)   γ₁Rγ₂ = appRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                    {S = ⟨ ⟦ B ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} {a ⇒ b} (lam t)     γ₁Rγ₂ = absRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S' = ⟨ ⟦ a ⟧Ty ⟩} {S = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} {b}     (app t u)   γ₁Rγ₂ = appRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                    {S = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
       ⟦_⟧Tm true                    γ₁Rγ₂ = refl
       ⟦_⟧Tm false                   γ₁Rγ₂ = refl
-      ⟦_⟧Tm {Γ} {A} (ifte b t₁ t₂)  γ₁Rγ₂ = (ifteRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ A ⟧Ty ⟩} ⟨ ⟦ t₁ ⟧Tm ⟩ ⟨ ⟦ t₂ ⟧Tm ⟩) .prs (γ₁Rγ₂ , ⟦ b ⟧Tm γ₁Rγ₂)
-      ⟦_⟧Tm {_} {A} (fst {B = B} t) γ₁Rγ₂ = proj₁Rel ⟨ ⟦ A ⟧Ty ⟩ ⟨ ⟦ B ⟧Ty ⟩ .prs (⟦ t ⟧Tm γ₁Rγ₂)
-      ⟦_⟧Tm {_} {B} (snd {A = A} t) γ₁Rγ₂ = proj₂Rel ⟨ ⟦ A ⟧Ty ⟩ ⟨ ⟦ B ⟧Ty ⟩ .prs (⟦ t ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm {Γ} {a} (ifte b t₁ t₂)  γ₁Rγ₂ = (ifteRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} ⟨ ⟦ t₁ ⟧Tm ⟩ ⟨ ⟦ t₂ ⟧Tm ⟩) .prs (γ₁Rγ₂ , ⟦ b ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm {_} {a} (fst {b = b} t) γ₁Rγ₂ = proj₁Rel {R = ⟨ ⟦ a ⟧Ty ⟩}  {S = ⟨ ⟦ b ⟧Ty ⟩} .prs (⟦ t ⟧Tm γ₁Rγ₂)
+      ⟦_⟧Tm {_} {b} (snd {a = a} t) γ₁Rγ₂ = proj₂Rel {R = ⟨ ⟦ a ⟧Ty ⟩}  {S = ⟨ ⟦ b ⟧Ty ⟩} .prs (⟦ t ⟧Tm γ₁Rγ₂)
       ⟦_⟧Tm (prd t u)               γ₁Rγ₂ = ⟦ t ⟧Tm γ₁Rγ₂ , ⟦ u ⟧Tm γ₁Rγ₂
       ⟦_⟧Tm unit                    γ₁Rγ₂ = tt
-      ⟦_⟧Tm {_} {A} (konst k)       γ₁Rγ₂ = ⟦ k ⟧KRel
+      ⟦_⟧Tm {Γ} (konst k)           γ₁Rγ₂ = ⟦ k ⟧KRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} γ₁Rγ₂
 
   -- example of NI in the two-point lattice
   module TwoPoint where
@@ -375,17 +375,17 @@ module Calculus where
     open Calculus Two Three K
     open Standard Two ⟦_⟧H using (⟦_⟧Ty)
 
-    ⟦_⟧K : ∀ j → ⟦ K j ⟧Ty
-    ⟦ 1' ⟧K = λ _ → tt
-    ⟦ 2' ⟧K = λ _ → tt
-    ⟦ 3' ⟧K = λ _ → tt
+    ⟦_⟧K : ∀ j {X : Set} → (X → ⟦ K j ⟧Ty)
+    ⟦ 1' ⟧K = λ _ _ → tt
+    ⟦ 2' ⟧K = λ _ _ → tt
+    ⟦ 3' ⟧K = λ _ _ → tt
 
     open Relational Two ⟦_⟧H ⟦_⟧H ⟦_⟧HRel renaming (⟦_⟧Ty to ⟦_⟧TyRel)
 
-    ⟦_⟧KRel : ∀ j → ⟦ K j ⟧TyRel ⟦ j ⟧K ⟦ j ⟧K
-    ⟦ 1' ⟧KRel = λ x → x
-    ⟦ 2' ⟧KRel = λ x → x
-    ⟦ 3' ⟧KRel = λ x → x
+    ⟦_⟧KRel : ∀ j {R : Rel₀} → _→-rel_ (R .Grf) ⟦ K j ⟧TyRel ⟦ j ⟧K ⟦ j ⟧K
+    ⟦ 1' ⟧KRel = λ _ x → x
+    ⟦ 2' ⟧KRel = λ _ x → x
+    ⟦ 3' ⟧KRel = λ _ x → x
 
     open Term Three K ⟦_⟧K ⟦_⟧K ⟦_⟧KRel
 

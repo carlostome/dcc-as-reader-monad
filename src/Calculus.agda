@@ -233,10 +233,10 @@ module Calculus where
   _×Rel_ R S .Cod = R .Cod × S .Cod
   _×Rel_ R S .Grf = R .Grf ×-rel S .Grf
 
-  pairRel : Rel₁ R S → Rel₁ R S' → Rel₁ R (S ×Rel S')
-  pairRel f g .dom = < f .dom , g .dom >
-  pairRel f g .cod = < f .cod , g .cod >
-  pairRel f g .prs = < f .prs , g .prs >
+  prdRel : Rel₁ R S → Rel₁ R S' → Rel₁ R (S ×Rel S')
+  prdRel f g .dom = < f .dom , g .dom >
+  prdRel f g .cod = < f .cod , g .cod >
+  prdRel f g .prs = < f .prs , g .prs >
 
   proj₁Rel : {R S : Rel₀} → Rel₁ (R ×Rel S) R
   proj₁Rel .dom = proj₁
@@ -247,6 +247,12 @@ module Calculus where
   proj₂Rel .dom = proj₂
   proj₂Rel .cod = proj₂
   proj₂Rel .prs = proj₂
+
+  fstRel : Rel₁ R (S ×Rel S') → Rel₁ R S
+  fstRel = proj₁Rel ∘Rel_
+
+  sndRel : Rel₁ R (S ×Rel S') → Rel₁ R S'
+  sndRel = proj₂Rel ∘Rel_
 
   -- Exponential of relations
   _→Rel_ : Rel₀ → Rel₀ → Rel₀
@@ -264,11 +270,19 @@ module Calculus where
   appRel f x .cod = λ r → f .cod r (x .cod r)
   appRel f x .prs = λ r → f .prs r (x .prs r)
 
+  evalRel : Rel₁ ((S' →Rel S) ×Rel S') S
+  evalRel = appRel proj₁Rel proj₂Rel
+
   -- Terminal relation
   ⊤Rel : Rel₀
   ⊤Rel .Dom = ⊤
   ⊤Rel .Cod = ⊤
   ⊤Rel .Grf = λ _ _ → ⊤
+
+  ttRel : Rel₁ R ⊤Rel
+  ttRel .dom _ = tt
+  ttRel .cod _ = tt
+  ttRel .prs _ = tt
 
   -- Boolean relation
   BoolRel : Rel₀
@@ -276,11 +290,25 @@ module Calculus where
   BoolRel .Cod = Bool
   BoolRel .Grf = _≡_
 
-  ifteRel : Rel₁ R S → Rel₁ R S → Rel₁ (R ×Rel BoolRel) S
-  ifteRel t e .dom                            (r     , b)    = if b then t .dom r else e .dom r
-  ifteRel t e .cod                            (r     , b)    = if b then t .cod r else e .cod r
-  ifteRel t e .prs {r₀ , true}  {r₁ , .true}  (r₀Rr₁ , refl) = t .prs r₀Rr₁
-  ifteRel t e .prs {r₀ , false} {r₁ , .false} (r₀Rr₁ , refl) = e .prs r₀Rr₁
+  trueRel : Rel₁ R BoolRel
+  trueRel .dom _ = true
+  trueRel .cod _ = true
+  trueRel .prs _ = refl
+
+  falseRel : Rel₁ R BoolRel
+  falseRel .dom _ = false
+  falseRel .cod _ = false
+  falseRel .prs _ = refl
+
+  ifteRel : Rel₁ R BoolRel → Rel₁ R S → Rel₁ R S → Rel₁ R S
+  ifteRel b t e .dom r = if b .dom r then t .dom r else e .dom r
+  ifteRel b t e .cod r = if b .cod r then t .cod r else e .cod r
+  ifteRel b t e .prs {r₀} {r₁} r₀Rr₁ with b .dom r₀ | b .cod r₁ | b .prs r₀Rr₁
+  ... | true  | .true  | refl = t .prs r₀Rr₁
+  ... | false | .false | refl = e .prs r₀Rr₁
+
+  caseRel : Rel₁ R S → Rel₁ R S → Rel₁ (R ×Rel BoolRel) S
+  caseRel t e = ifteRel proj₂Rel (t ∘Rel proj₁Rel) (e ∘Rel proj₁Rel)
 
   -- relational interpretation of the calculus
   module Relational (I : Set) (⟦_⟧TyVar₁ : I → Set)
@@ -324,15 +352,15 @@ module Calculus where
                → (t : Γ ⊢ a)
                → ⟦ Γ ⟧Ctx γ₁ γ₂ → ⟦ a ⟧Ty (⟦ t ⟧Tm₁ γ₁) (⟦ t ⟧Tm₂ γ₂)
       ⟦_⟧Tm (var x)                 γ₁Rγ₂ = ⟦ x ⟧Var γ₁Rγ₂
-      ⟦_⟧Tm {Γ} {a ⇒ b} (lam t)     γ₁Rγ₂ = absRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S' = ⟨ ⟦ a ⟧Ty ⟩} {S = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} {b}     (app t u)   γ₁Rγ₂ = appRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                    {S = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
-      ⟦_⟧Tm true                    γ₁Rγ₂ = refl
-      ⟦_⟧Tm false                   γ₁Rγ₂ = refl
-      ⟦_⟧Tm {Γ} {a} (ifte b t₁ t₂)  γ₁Rγ₂ = (ifteRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} ⟨ ⟦ t₁ ⟧Tm ⟩ ⟨ ⟦ t₂ ⟧Tm ⟩) .prs (γ₁Rγ₂ , ⟦ b ⟧Tm γ₁Rγ₂)
-      ⟦_⟧Tm {_} {a} (fst {b = b} t) γ₁Rγ₂ = proj₁Rel {R = ⟨ ⟦ a ⟧Ty ⟩}  {S = ⟨ ⟦ b ⟧Ty ⟩} .prs (⟦ t ⟧Tm γ₁Rγ₂)
-      ⟦_⟧Tm {_} {b} (snd {a = a} t) γ₁Rγ₂ = proj₂Rel {R = ⟨ ⟦ a ⟧Ty ⟩}  {S = ⟨ ⟦ b ⟧Ty ⟩} .prs (⟦ t ⟧Tm γ₁Rγ₂)
-      ⟦_⟧Tm (prd t u)               γ₁Rγ₂ = ⟦ t ⟧Tm γ₁Rγ₂ , ⟦ u ⟧Tm γ₁Rγ₂
-      ⟦_⟧Tm unit                    γ₁Rγ₂ = tt
+      ⟦_⟧Tm {Γ} {a ⇒ b} (lam t)     γ₁Rγ₂ = absRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S' = ⟨ ⟦ a ⟧Ty ⟩} {S = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} {b}     (app t u)   γ₁Rγ₂ = appRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                    {S = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} true                γ₁Rγ₂ = trueRel   {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                              .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} false               γ₁Rγ₂ = falseRel  {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                              .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} {a} (ifte b t₁ t₂)  γ₁Rγ₂ = ifteRel   {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} ⟨ ⟦ b ⟧Tm ⟩ ⟨ ⟦ t₁ ⟧Tm ⟩ ⟨ ⟦ t₂ ⟧Tm ⟩      .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} {a} (fst {b = b} t) γ₁Rγ₂ = fstRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} {b} (snd {a = a} t) γ₁Rγ₂ = sndRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} {a ∧ b} (prd t u)   γ₁Rγ₂ = prdRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
+      ⟦_⟧Tm {Γ} unit                γ₁Rγ₂ = ttRel     {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                              .prs γ₁Rγ₂
       ⟦_⟧Tm {Γ} (konst k)           γ₁Rγ₂ = ⟦ k ⟧KRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩} γ₁Rγ₂
 
   -- example of NI in the two-point lattice

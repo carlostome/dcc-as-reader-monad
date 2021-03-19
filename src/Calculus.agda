@@ -20,6 +20,7 @@ module Calculus where
     using (⊤; tt)
   open import Relation.Binary.PropositionalEquality
     using (_≡_; refl)
+    renaming (isEquivalence to ≡-isEquivalence)
   open import Data.Bool
     using (Bool; true; false; if_then_else_)
   open import Relation.Binary as R
@@ -47,21 +48,22 @@ module Calculus where
 
     pattern _;_ xs x = x ∷ xs
 
-  open Type
-
   -- I is the set of base types,
   -- J is the set of constants, and
   -- K is the function assigning the type K j to the constant j
-  module Calculus (I : Set) (J : Set) (K : J → Ty I) where
+  module Calculus (P : Preorder ℓzero ℓzero ℓzero) where
 
     infix  2 _⊢_
 
+    open Preorder P renaming (_∼_ to _⊑_) hiding (refl)
+    open Type Carrier
+
     variable
-      a b c : Ty I
-      Γ Γ'  : Ctx I
+      a b c : Ty
+      Γ Γ'  : Ctx
 
     -- terms
-    data _⊢_ (Γ : Ctx I) : Ty I → Set where
+    data _⊢_ (Γ : Ctx) : Ty → Set where
 
         var : a ∈ Γ
             -------
@@ -98,9 +100,9 @@ module Calculus where
               --------
               Γ ⊢ unit
 
-        konst : (j : J)
-              ---------
-              → Γ ⊢ K j
+        coe : ∀ {i j : Carrier} → i ⊑ j
+              ------------------------
+              → Γ ⊢ X i ⇒ X j
 
     b0 : a ∈ Γ ; a
     b0 = here refl
@@ -121,13 +123,12 @@ module Calculus where
     v2 = var b2
 
     -- "security monad"
-    T : Ty I → Ty I → Ty I
+    T : Ty → Ty → Ty
     T ℓ a = ℓ ⇒ a
     
     private
       variable
-        i : I
-        ℓ ℓ' : Ty I
+        ℓ ℓ' : Ty
 
     return : Γ ⊢ a ⇒ T ℓ a
     return = lam (lam v1)
@@ -139,22 +140,26 @@ module Calculus where
     comm = lam (lam (lam (app (app v2 v0) v1)))
 
   -- standard interpretation
-  module Standard (I : Set) (⟦_⟧TyVar : I → Set) where
+  module Standard (P : Preorder ℓzero ℓzero ℓzero)
+                  (let open Preorder P renaming (_∼_ to _⊑_) hiding (refl))
+                  (⟦_⟧TyVar : Carrier → Set) where
 
-    ⟦_⟧Ty : Ty I → Set
+    open Type Carrier
+
+    ⟦_⟧Ty : Ty → Set
     ⟦ bool  ⟧Ty = Bool
     ⟦ a ⇒ b ⟧Ty = ⟦ a ⟧Ty → ⟦ b ⟧Ty
     ⟦ a ∧ b ⟧Ty = ⟦ a ⟧Ty × ⟦ b ⟧Ty
     ⟦ unit  ⟧Ty = ⊤
-    ⟦ X x   ⟧Ty = ⟦ x ⟧TyVar
+    ⟦ X i   ⟧Ty = ⟦ i ⟧TyVar
 
-    ⟦_⟧Ctx : Ctx I → Set
+    ⟦_⟧Ctx : Ctx → Set
     ⟦ []    ⟧Ctx = ⊤
     ⟦ Γ ; a ⟧Ctx = ⟦ Γ ⟧Ctx × ⟦ a ⟧Ty
 
-    module Term (J : Set) (K : J → Ty I) (⟦_⟧K : ∀ (j : J) {X} → (X → ⟦ K j ⟧Ty)) where
+    module Term (⟦_⟧Coe : ∀ {i j} → i ⊑ j → ⟦ i ⟧TyVar → ⟦ j ⟧TyVar) where
 
-      open Calculus I J K
+      open Calculus P
 
       ⟦_⟧Var : a ∈ Γ → ⟦ Γ ⟧Ctx → ⟦ a ⟧Ty
       ⟦ here refl ⟧Var = proj₂
@@ -171,7 +176,7 @@ module Calculus where
       ⟦ snd t        ⟧Tm = λ γ → proj₂ (⟦ t ⟧Tm γ)
       ⟦ prd t₁ t₂    ⟧Tm = λ γ → ⟦ t₁ ⟧Tm γ , ⟦ t₂ ⟧Tm γ 
       ⟦ unit         ⟧Tm = λ γ → tt
-      ⟦ konst k      ⟧Tm = λ γ → ⟦ k ⟧K γ
+      ⟦ coe i⊑j      ⟧Tm = λ γ → ⟦ i⊑j ⟧Coe
 
   private
     variable
@@ -311,34 +316,36 @@ module Calculus where
   caseRel t e = ifteRel proj₂Rel (t ∘Rel proj₁Rel) (e ∘Rel proj₁Rel)
 
   -- relational interpretation of the calculus
-  module Relational (I : Set) (⟦_⟧TyVar₁ : I → Set)
-                              (⟦_⟧TyVar₂ : I → Set)
-                              (⟦_⟧TyVarRel : ∀ (i : I) → Rel (⟦ i ⟧TyVar₁)  (⟦ i ⟧TyVar₂))
-                              where
+  module Relational (P : Preorder ℓzero ℓzero ℓzero)
+                    (let open Preorder P renaming (_∼_ to _⊑_) hiding (refl))
+                    (⟦_⟧TyVar₁ : Carrier → Set)
+                    (⟦_⟧TyVar₂ : Carrier → Set)
+                    (⟦_⟧TyVarRel : ∀ (i : Carrier) → Rel (⟦ i ⟧TyVar₁)  (⟦ i ⟧TyVar₂))
+                    where
 
-    open Standard I ⟦_⟧TyVar₁ renaming (⟦_⟧Ty to ⟦_⟧Ty₁; ⟦_⟧Ctx to ⟦_⟧Ctx₁; module Term to Term₁)
-    open Standard I ⟦_⟧TyVar₂ renaming (⟦_⟧Ty to ⟦_⟧Ty₂; ⟦_⟧Ctx to ⟦_⟧Ctx₂; module Term to Term₂)
+    open Type Carrier
+    open Standard P ⟦_⟧TyVar₁ renaming (⟦_⟧Ty to ⟦_⟧Ty₁; ⟦_⟧Ctx to ⟦_⟧Ctx₁; module Term to Term₁)
+    open Standard P ⟦_⟧TyVar₂ renaming (⟦_⟧Ty to ⟦_⟧Ty₂; ⟦_⟧Ctx to ⟦_⟧Ctx₂; module Term to Term₂)
 
-    ⟦_⟧Ty : (a : Ty I) → Rel (⟦ a ⟧Ty₁) (⟦ a ⟧Ty₂)
+    ⟦_⟧Ty : (a : Ty) → Rel (⟦ a ⟧Ty₁) (⟦ a ⟧Ty₂)
     ⟦ bool  ⟧Ty = BoolRel .Grf
     ⟦ a ⇒ b ⟧Ty = (⟨ ⟦ a ⟧Ty ⟩ →Rel ⟨ ⟦ b ⟧Ty ⟩) .Grf
     ⟦ a ∧ b ⟧Ty = (⟨ ⟦ a ⟧Ty ⟩ ×Rel ⟨ ⟦ b ⟧Ty ⟩) .Grf
     ⟦ unit  ⟧Ty = ⊤Rel .Grf
     ⟦ X x   ⟧Ty = ⟦ x ⟧TyVarRel
 
-    ⟦_⟧Ctx : (Γ : Ctx I) → Rel (⟦ Γ ⟧Ctx₁) (⟦ Γ ⟧Ctx₂)
+    ⟦_⟧Ctx : (Γ : Ctx) → Rel (⟦ Γ ⟧Ctx₁) (⟦ Γ ⟧Ctx₂)
     ⟦ []    ⟧Ctx = ⊤Rel .Grf
     ⟦ Γ ; a ⟧Ctx = (⟨ ⟦ Γ ⟧Ctx ⟩ ×Rel ⟨ ⟦ a ⟧Ty ⟩) .Grf
 
-    module Term (J : Set) (K : J → Ty I)
-                          (⟦_⟧K₁   : ∀ (j : J) {X₁} → (X₁ → ⟦ K j ⟧Ty₁))
-                          (⟦_⟧K₂   : ∀ (j : J) {X₂} → (X₂ → ⟦ K j ⟧Ty₂))
-                          (⟦_⟧KRel : ∀ (j : J) {R : Rel₀} → _→-rel_ (R .Grf) ⟦ K j ⟧Ty ⟦ j ⟧K₁ ⟦ j ⟧K₂)
-                              where
+    module Term  (⟦_⟧Coe₁ : ∀ {i j} → i ⊑ j → ⟦ i ⟧TyVar₁ → ⟦ j ⟧TyVar₁)
+                 (⟦_⟧Coe₂ : ∀ {i j} → i ⊑ j → ⟦ i ⟧TyVar₂ → ⟦ j ⟧TyVar₂)
+                 (⟦_⟧CoeRel : ∀ {i j} → (i⊑j : i ⊑ j) → (⟦ X i ⟧Ty →-rel ⟦ X j ⟧Ty) ⟦ i⊑j ⟧Coe₁ ⟦ i⊑j ⟧Coe₂)
+                 where
 
-      open Calculus I J K
-      open Term₁ J K ⟦_⟧K₁ renaming (⟦_⟧Tm to ⟦_⟧Tm₁; ⟦_⟧Var to ⟦_⟧Var₁) public
-      open Term₂ J K ⟦_⟧K₂ renaming (⟦_⟧Tm to ⟦_⟧Tm₂; ⟦_⟧Var to ⟦_⟧Var₂) public
+      open Calculus P
+      open Term₁ ⟦_⟧Coe₁ renaming (⟦_⟧Tm to ⟦_⟧Tm₁; ⟦_⟧Var to ⟦_⟧Var₁) public
+      open Term₂ ⟦_⟧Coe₂ renaming (⟦_⟧Tm to ⟦_⟧Tm₂; ⟦_⟧Var to ⟦_⟧Var₂) public
 
       ⟦_⟧Var : ∀ {γ₁ : ⟦ Γ ⟧Ctx₁} {γ₂ : ⟦ Γ ⟧Ctx₂}
                 → (a∈Γ : a ∈ Γ)
@@ -361,67 +368,60 @@ module Calculus where
       ⟦_⟧Tm {Γ} (snd {a} {b} t)    γ₁Rγ₂ = sndRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩             .prs γ₁Rγ₂
       ⟦_⟧Tm {Γ} (prd {a} {b} t u)  γ₁Rγ₂ = prdRel    {R = ⟨ ⟦ Γ ⟧Ctx ⟩} {S = ⟨ ⟦ a ⟧Ty ⟩} {S' = ⟨ ⟦ b ⟧Ty ⟩} ⟨ ⟦ t ⟧Tm ⟩ ⟨ ⟦ u ⟧Tm ⟩ .prs γ₁Rγ₂
       ⟦_⟧Tm {Γ} unit               γ₁Rγ₂ = ttRel     {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                              .prs γ₁Rγ₂
-      ⟦_⟧Tm {Γ} (konst k)          γ₁Rγ₂ = ⟦ k ⟧KRel {R = ⟨ ⟦ Γ ⟧Ctx ⟩}                                                                   γ₁Rγ₂
+      ⟦_⟧Tm {Γ} (coe i⊑j)          γ₁Rγ₂ = ⟦ i⊑j ⟧CoeRel
 
   -- example of NI in the two-point lattice
   module TwoPoint where
 
-    -- two element set
-    data Two : Set where
-      1' 2' : Two
+    data LH : Set where
+      L H : LH
 
-    -- three element set
-    data Three : Set where
-      1' 2' 3' : Three
+    private
+      variable
+        l l' l'' : LH
 
-    L : Ty Two
-    L = X 1'
+    data _⊑_ : LH → LH → Set where
+      L⊑H    : L ⊑ H
+      ⊑-refl : l ⊑ l
 
-    H : Ty Two
-    H = X 2' 
+    ⊑-trans : Transitive (_⊑_)
+    ⊑-trans x   ⊑-refl = x
+    ⊑-trans ⊑-refl L⊑H = L⊑H
 
-    ⟦_⟧H : Two → Set
-    ⟦_⟧H _ = ⊤
+    LH-Preorder : Preorder ℓzero ℓzero ℓzero
+    LH-Preorder = record { Carrier = LH
+                         ; _≈_ = _≡_
+                         ; _∼_ = _⊑_
+                         ; isPreorder = record { isEquivalence = ≡-isEquivalence 
+                                               ; reflexive = λ {refl → ⊑-refl}
+                                               ; trans = ⊑-trans } }
+    open Type LH
+    open Calculus LH-Preorder
 
-    ⟦_⟧HRel : ∀ (v : Two) → Rel (⟦ v ⟧H)  (⟦ v ⟧H)
-    ⟦_⟧HRel _ _ _ = ⊥
+    ⟦H⟧ : LH → Set
+    ⟦H⟧ _ = ⊤
 
-    L⊑H : Ty Two
-    L⊑H = L ⇒ H
+    ⟦H⟧Rel : ∀ ℓ → Rel (⟦H⟧ ℓ) (⟦H⟧ ℓ)
+    ⟦H⟧Rel _ = λ x y → ⊥
 
-    L⊑L : Ty Two
-    L⊑L = L ⇒ L
+    ⟦coe⟧ : l ⊑ l' → ⟦H⟧ l → ⟦H⟧ l'
+    ⟦coe⟧ L⊑H = λ _ → tt
+    ⟦coe⟧ ⊑-refl = λ x → x
 
-    H⊑H : Ty Two
-    H⊑H = H ⇒ H
+    ⟦coe⟧Rel : (l⊑l' : l ⊑ l') →  (⟦H⟧Rel l →-rel ⟦H⟧Rel l') (⟦coe⟧ l⊑l') (⟦coe⟧ l⊑l')
+    ⟦coe⟧Rel _ ()
 
-    K : Three → Ty Two
-    K 1' = L⊑H 
-    K 2' = L⊑L
-    K 3' = H⊑H 
+    module Rel-LH = Relational LH-Preorder ⟦H⟧ ⟦H⟧ ⟦H⟧Rel
+    open Rel-LH
+    open Rel-LH.Term ⟦coe⟧ ⟦coe⟧ ⟦coe⟧Rel
 
-    open Calculus Two Three K
-    open Standard Two ⟦_⟧H using (⟦_⟧Ty)
-
-    ⟦_⟧K : ∀ j {X : Set} → (X → ⟦ K j ⟧Ty)
-    ⟦ 1' ⟧K = λ _ _ → tt
-    ⟦ 2' ⟧K = λ _ _ → tt
-    ⟦ 3' ⟧K = λ _ _ → tt
-
-    open Relational Two ⟦_⟧H ⟦_⟧H ⟦_⟧HRel renaming (⟦_⟧Ty to ⟦_⟧TyRel)
-
-    ⟦_⟧KRel : ∀ j {R : Rel₀} → _→-rel_ (R .Grf) ⟦ K j ⟧TyRel ⟦ j ⟧K ⟦ j ⟧K
-    ⟦ 1' ⟧KRel = λ _ x → x
-    ⟦ 2' ⟧KRel = λ _ x → x
-    ⟦ 3' ⟧KRel = λ _ x → x
-
-    open Term Three K ⟦_⟧K ⟦_⟧K ⟦_⟧KRel
+    H' = X H 
 
     -- non-interference follows from the abstraction theorem
-    ni : ∀ (t : [] ; T H bool ⊢ bool)
-         → (s₁ s₂ : [] ⊢ T H bool)
-         → (⟦ t ⟧Tm₁ (tt , ⟦ s₁ ⟧Tm₁ tt) ≡ ⟦ t ⟧Tm₂ (tt , ⟦ s₂ ⟧Tm₂ tt))
+    ni : ∀ (t : T H' bool ∷ [] ⊢ bool)
+         → (s₁ s₂ : [] ⊢ T H' bool)
+         → (⟦ t ⟧Tm₁ (tt , (⟦ s₁ ⟧Tm₁ tt))) ≡ (⟦ t ⟧Tm₂ (tt , (⟦ s₂ ⟧Tm₂ tt)))
     ni t s₁ s₂ = ⟦ t ⟧Tm (tt , s₁Rs₂)
        where
-         s₁Rs₂ : ⟦ T H bool ⟧TyRel (⟦ s₁ ⟧Tm₂ tt) (⟦ s₂ ⟧Tm₂ tt)
-         s₁Rs₂ ()
+         s₁Rs₂ : ⟦ T H' bool ⟧Ty (⟦ s₁ ⟧Tm₂ tt) (⟦ s₂ ⟧Tm₂ tt)
+         s₁Rs₂  ()
